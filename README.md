@@ -1,6 +1,9 @@
 # httpdigest
 A simple Go(lang) drop-in replacement for "net/http/Client" with Digest Auth capability.
 
+## Warning
+The API design is on going. Watch out when updating.
+
 ## Usage
 Import the package.
 
