@@ -5,31 +5,36 @@ A simple Go(lang) drop-in replacement for "net/http/Client" with Digest Auth cap
 The API design is on going. Watch out when updating.
 
 ## Usage
-Import the package.
-
-    import "github.com/iwat/httpdigest"
-
-Change from this:
-
-    client := http.Client{}
-
-To this:
-
-    client := httpdigest.Client{}
-
-Anything else is just a simple net/http/Client usage.
-
-    request, err := http.NewRequest("GET", url, nil)
+    import (
+        "net/http"
+        
+        "github.com/iwat/httpdigest"
+    )
     
-    if err != nil {
-        panic(err)
+    func test() {    
+        type IdentStore struct {
+            user string
+            pass string
+        }
+    
+        client := httpdigest.Client{AuthHandler: identStore}
+    
+        request, err := http.NewRequest("GET", url, nil)
+    
+        if err != nil {
+            panic(err)
+        }
+        
+        resp, err := client.Do(request)
+    
+        if err != nil {
+            panic(err)
+        }
     }
-    
-	request.SetBasicAuth(username, password)
-	resp, err := client.Do(request)
-    
-    if err != nil {
-        panic(err)
+
+    func (id IdentStore) HandleAuth(resp *http.Response, req *http.Request) {
+        challenge := httpdigest.ChallengeFromResponse(resp)
+        challenge.ApplyAuth(id.user, id.pass, req)
     }
 
 ## Legal

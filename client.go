@@ -4,50 +4,68 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
-type Client struct {
-	Client http.Client
+type AuthHandler interface {
+	HandleAuth(resp *http.Response, req *http.Request)
 }
 
-func (client *Client) Do(req *http.Request) (resp *http.Response, err error) {
-	resp, err = client.Client.Do(req)
+// A Client wraps http.Client as internal variable while handling HTTP
+// authentication challenges and delegate to an appropriated handler.
+type Client struct {
+	HttpClient  http.Client
+	AuthHandler AuthHandler
+}
+
+func (c *Client) Do(req *http.Request) (resp *http.Response, err error) {
+	resp, err = c.HttpClient.Do(req)
 
 	if err != nil {
 		return resp, err
 	}
 
-	username, password, ok := req.BasicAuth()
+	if resp.StatusCode == 401 && c.AuthHandler != nil {
+		c.AuthHandler.HandleAuth(resp, req)
 
-	if resp.StatusCode == 401 && ok {
-		challenge := ChallengeFromResponse(resp)
-		challenge.username = username
-		challenge.password = password
-		challenge.Path = req.URL.RequestURI()
-		challenge.ApplyAuth(req)
-
-		resp, err = client.Client.Do(req)
+		resp, err = c.HttpClient.Do(req)
 	}
 
 	return resp, err
 }
 
 func (c *Client) Get(url string) (resp *http.Response, err error) {
-	panic("httpdigest.Client.Get is not implemented")
-	return
+	req, err := http.NewRequest("GET", url, nil)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return c.Do(req)
 }
 
 func (c *Client) Head(url string) (resp *http.Response, err error) {
-	panic("httpdigest.Client.Head is not implemented")
-	return
+	req, err := http.NewRequest("HEAD", url, nil)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return c.Do(req)
 }
 
 func (c *Client) Post(url string, bodyType string, body io.Reader) (resp *http.Response, err error) {
-	panic("httpdigest.Client.Post is not implemented")
-	return
+	req, err := http.NewRequest("POST", url, body)
+
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", bodyType)
+
+	return c.Do(req)
 }
 
 func (c *Client) PostForm(url string, data url.Values) (resp *http.Response, err error) {
-	panic("httpdigest.Client.PostForm is not implemented")
-	return
+	return c.Post(url, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
 }

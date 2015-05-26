@@ -17,10 +17,7 @@ type DigestChallenge struct {
 	Opaque    string
 	Algorithm string
 	Cnonce    string
-	Path      string
 	Nc        int16
-	username  string
-	password  string
 }
 
 func ChallengeFromResponse(resp *http.Response) DigestChallenge {
@@ -42,14 +39,14 @@ func ChallengeFromResponse(resp *http.Response) DigestChallenge {
 	return d
 }
 
-func (d DigestChallenge) ApplyAuth(req *http.Request) {
+func (d DigestChallenge) ApplyAuth(user, pass string, req *http.Request) {
 	d.Nc += 0x1
 	d.Cnonce = randomNonce()
 	d.Method = req.Method
-	d.Path = req.URL.RequestURI()
+	path := req.URL.RequestURI()
 
 	AuthHeader := fmt.Sprintf(`Digest username="%s", realm="%s", nonce="%s", uri="%s", cnonce="%s", nc=%08x, qop=%s, response="%s", algorithm=%s`,
-		d.username, d.Realm, d.Nonce, d.Path, d.Cnonce, d.Nc, d.Qop, d.calculateResponse(), d.Algorithm)
+		user, d.Realm, d.Nonce, path, d.Cnonce, d.Nc, d.Qop, d.calculateResponse(user, pass, path), d.Algorithm)
 
 	if d.Opaque != "" {
 		AuthHeader = fmt.Sprintf(`%s, opaque="%s"`, AuthHeader, d.Opaque)
@@ -58,20 +55,20 @@ func (d DigestChallenge) ApplyAuth(req *http.Request) {
 	req.Header.Set("Authorization", AuthHeader)
 }
 
-func (d DigestChallenge) calculateResponse() string {
-	ha1, ha2 := d.calculateChecksum()
+func (d DigestChallenge) calculateResponse(user, pass, path string) string {
+	ha1, ha2 := d.calculateChecksum(user, pass, path)
 
 	message := strings.Join([]string{ha1, d.Nonce, fmt.Sprintf("%08x", d.Nc), d.Cnonce, d.Qop, ha2}, ":")
 	return fmt.Sprintf("%x", md5.Sum([]byte(message)))
 }
 
-func (d DigestChallenge) calculateChecksum() (string, string) {
+func (d DigestChallenge) calculateChecksum(user, pass, path string) (string, string) {
 	switch d.Algorithm {
 	case "MD5":
-		a1 := fmt.Sprintf("%s:%s:%s", d.username, d.Realm, d.password)
+		a1 := fmt.Sprintf("%s:%s:%s", user, d.Realm, pass)
 		ha1 := fmt.Sprintf("%x", md5.Sum([]byte(a1)))
 
-		a2 := fmt.Sprintf("%s:%s", d.Method, d.Path)
+		a2 := fmt.Sprintf("%s:%s", d.Method, path)
 		ha2 := fmt.Sprintf("%x", md5.Sum([]byte(a2)))
 		return ha1, ha2
 
