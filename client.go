@@ -1,3 +1,13 @@
+// go-httpdigest - A simple Go(lang) drop-in replacement for "net/http/Client"
+// with Digest Auth capability.
+
+// Copyright (c) 2015 Chaiwat Shuetrakoonpaiboon. All rights reserved.
+//
+// Use of this source code is governed by a MIT license that can be found in
+// the LICENSE file.
+
+// Package httpdigest provides a simple Go(lang) drop-in replacement for
+// "net/http/Client" with Digest Auth capability.
 package httpdigest
 
 import (
